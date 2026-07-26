@@ -82,6 +82,15 @@ body {
   text-transform: uppercase; color: var(--ink);
   text-decoration: none;
 }
+.navsuitor {
+  position: absolute; left: 34px;
+  font-family: var(--font-sans), sans-serif; font-weight: 400;
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--grey); text-decoration: none; transition: color 0.3s;
+}
+.navsuitor:hover { color: var(--gold-deep); }
+@media (max-width: 620px) { .navsuitor { display: none; } }
+
 .navvault {
   position: absolute; right: 34px;
   font-family: var(--font-sans), sans-serif; font-weight: 400;
@@ -161,3 +170,10 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 .progress { display: flex; gap: 7px; justify-content: center; margin-bottom: 44px; }
 .progress div { width: 32px; height: 1px; background: var(--line); transition: all 0.4s; }
 .progress div.done { background: var(--gold); height: 2px; }
+
+/* Print: the deliverable should print as a clean jeweler document. */
+@media print {
+  .nav, .btn, .ulink { display: none !important; }
+  body { background: #fff; }
+  .shell { padding: 0; max-width: 100%; }
+}
