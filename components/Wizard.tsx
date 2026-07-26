@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/Icon';
 import { STEPS, CONNOISSEUR_DETAILS } from '@/lib/taxonomy';
+import { supabaseBrowser } from '@/lib/supabaseBrowser';
 
 type Selections = Record<string, string>;
 
@@ -18,6 +19,23 @@ export default function Wizard() {
   const [note, setNote] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // If she's already signed in, prefill her email and link the design to her account.
+  useEffect(() => {
+    (async () => {
+      try {
+        const sb = supabaseBrowser();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.user) {
+          setUserId(session.user.id);
+          if (session.user.email) setEmail(session.user.email);
+        }
+      } catch {
+        /* auth not configured yet — anonymous save still works */
+      }
+    })();
+  }, []);
 
   const total = STEPS.length;
   const atReview = step === total;
@@ -45,6 +63,7 @@ export default function Wizard() {
         body: JSON.stringify({
           email,
           note,
+          userId,
           selections: Object.fromEntries(reviewRows)
         })
       });
@@ -65,10 +84,12 @@ export default function Wizard() {
           Safe <em>&amp; sound.</em>
         </h2>
         <p className="hint" style={{ maxWidth: 440, margin: '0 auto 40px' }}>
-          Your ring is in the vault. We&apos;ve sent a copy to {email} — and we&apos;ll write the
-          moment the full vault opens, where you can visit, refine, and share it.
+          Your ring is in the vault, under {email}. Open your vault any time to visit it, refine
+          it, or leave a note — we&apos;ll send a private link, no password needed.
         </p>
-        <a className="btn" href="/">Return Home</a>
+        <a className="btn" href="/enter">Open My Vault</a>
+        &nbsp;&nbsp;&nbsp;
+        <a className="ulink" href="/">Return Home</a>
       </div>
     );
   }

@@ -13,6 +13,9 @@ export default function Home() {
       <p className="msg" style={{ color: 'var(--grey)', marginTop: 22 }}>
         Free to design · Always private
       </p>
+      <p style={{ marginTop: 34 }}>
+        <a className="ulink" href="/enter">Already have a ring in the vault?</a>
+      </p>
     </div>
   );
 }

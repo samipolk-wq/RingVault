@@ -27,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <nav className="nav">
           <a className="logotype" href="/">The Ring Vault</a>
+          <a className="navvault" href="/vault">My Vault</a>
         </nav>
         {children}
       </body>

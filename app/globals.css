@@ -71,7 +71,7 @@ body {
 .nav {
   position: sticky; top: 0; z-index: 90;
   display: flex; justify-content: center; align-items: center;
-  height: 72px;
+  height: 72px; position: relative;
   background: rgba(253, 252, 249, 0.96);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
@@ -82,6 +82,14 @@ body {
   text-transform: uppercase; color: var(--ink);
   text-decoration: none;
 }
+.navvault {
+  position: absolute; right: 34px;
+  font-family: var(--font-sans), sans-serif; font-weight: 400;
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--grey); text-decoration: none; transition: color 0.3s;
+}
+.navvault:hover { color: var(--gold-deep); }
+@media (max-width: 620px) { .navvault { display: none; } }
 
 /* ---- wizard ---- */
 .shell { max-width: 880px; margin: 0 auto; padding: 60px 24px 140px; }
