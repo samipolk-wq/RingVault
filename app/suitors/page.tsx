@@ -18,6 +18,7 @@ export default function SuitorsPage() {
   const [err, setErr] = useState('');
   const [leadSent, setLeadSent] = useState(false);
   const [promptChoice, setPromptChoice] = useState('direct');
+  const [paying, setPaying] = useState(false);
 
   async function search(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +66,24 @@ export default function SuitorsPage() {
       setErr(e instanceof Error ? e.message : 'Verification failed.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Hand the verified token to Stripe and follow the hosted checkout page.
+  async function payAndUnlock() {
+    setPaying(true); setErr('');
+    try {
+      const res = await fetch('/api/suitor/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not start checkout.');
+      window.location.href = data.url;
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Could not start checkout.');
+      setPaying(false);
     }
   }
 
@@ -188,12 +207,18 @@ export default function SuitorsPage() {
             padding: '22px 2px', margin: '0 0 8px'
           }}>
             <span style={{ fontSize: 20 }}>Their Perfect Ring</span>
-            <span style={{ fontSize: 20 }}>$19.99</span>
+            <span style={{ fontSize: 20 }}>$49.99</span>
           </div>
           <p className="msg" style={{ color: 'var(--grey)', marginBottom: 26 }}>
             Full specification · Their inspiration notes · Jeweler-ready document · Local jeweler introductions
           </p>
-          <a className="btn" href={`/deliverable?token=${token}`}>Continue</a>
+          <button className="btn" style={{ width: '100%' }} onClick={payAndUnlock} disabled={paying}>
+            {paying ? 'Opening secure checkout…' : 'Continue to Payment'}
+          </button>
+          {err && <div className="msg err">{err}</div>}
+          <div className="msg" style={{ color: 'var(--grey)', textAlign: 'center' }}>
+            Secure payment by Stripe · Your card details never touch our servers
+          </div>
         </div>
       )}
 

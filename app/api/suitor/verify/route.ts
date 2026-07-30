@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { hashAnswer, hashesMatch } from '@/lib/verify';
+import { recordEvent } from '@/lib/notify';
 
 /**
  * Step 2: confirm he knows her. Answers are hashed and compared against the
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
   if (row.verify_school_hash) checks.push(hashesMatch(hashAnswer(body.school || ''), row.verify_school_hash));
 
   if (checks.length === 0 || checks.some((ok) => !ok)) {
+    // Tell her someone tried, if she asked to be told. Fire-and-forget so a
+    // mail problem can never turn a failed guess into a 500.
+    void recordEvent({ designId, kind: 'verify_failed', actorEmail: suitorEmail || null });
     // Vague on purpose: never reveal which answer was wrong.
     return NextResponse.json({ verified: false }, { status: 200 });
   }
@@ -61,6 +65,8 @@ export async function POST(req: Request) {
     console.error('unlock insert failed:', insErr?.message);
     return NextResponse.json({ error: 'Could not begin the unlock.' }, { status: 500 });
   }
+
+  void recordEvent({ designId, kind: 'verify_passed', actorEmail: suitorEmail || null });
 
   return NextResponse.json({ verified: true, token: unlock[0].access_token });
 }

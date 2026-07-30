@@ -37,10 +37,11 @@ export default function DeliverablePage() {
       <div className="shell" style={{ maxWidth: 560, textAlign: 'center', paddingTop: 120 }}>
         <div className="cap">Almost There</div>
         <h1 style={{ fontSize: 36, fontWeight: 300, margin: '20px 0 14px' }}>One step <em>remains.</em></h1>
-        <p className="hint" style={{ maxWidth: 380, margin: '0 auto' }}>
-          Checkout isn&apos;t live yet — it arrives with the next release. Your unlock is saved and
-          waiting.
+        <p className="hint" style={{ maxWidth: 400, margin: '0 auto 30px' }}>
+          This ring is still sealed. Complete the payment and it opens immediately — and stays
+          open, at this same link, for good.
         </p>
+        <a className="btn" href="/suitors">Continue to Payment</a>
       </div>
     );
   }
