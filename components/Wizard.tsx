@@ -100,7 +100,7 @@ export default function Wizard() {
         <span className="cap dim">
           {atReview ? 'Review' : `Step ${String(step + 1).padStart(2, '0')} — ${String(total).padStart(2, '0')}`}
         </span>
-        <span className="cap">The Design Atelier</span>
+        <span className="cap">Your Specification</span>
       </div>
 
       <div className="progress">
@@ -117,20 +117,21 @@ export default function Wizard() {
           {current.slider ? (
             <>
               <div className="slider-wrap">
-                <div className="subhead"><span className="cap dim">Minimum Size</span></div>
+                <div className="subhead"><span className="cap dim">The number you won&apos;t go below</span></div>
                 <input
                   type="range" min={0.25} max={5} step={0.25} value={minCt}
                   onChange={(e) => setMinCt(Number(e.target.value))}
                 />
                 <div className="carat-val">{minCt} carats</div>
-                <div className="subhead"><span className="cap dim">Dream Size</span></div>
+                <div className="subhead"><span className="cap dim">The number you actually want</span></div>
                 <input
                   type="range" min={0.25} max={8} step={0.25} value={dreamCt}
                   onChange={(e) => setDreamCt(Number(e.target.value))}
                 />
                 <div className="carat-val">{dreamCt} carats</div>
                 <p className="carat-note">
-                  It&apos;s the quality of the person — not the size of the stone — that matters.
+                  No one has ever regretted being specific. Put down the number you mean — not the
+                  one you think is polite.
                 </p>
               </div>
               <div className="subhead"><span className="cap dim">The connoisseur&apos;s details — skip freely</span></div>
@@ -182,10 +183,10 @@ export default function Wizard() {
       {atReview && (
         <div className="wstep">
           <h2>Place your ring <em>into the vault</em></h2>
-          <p className="hint">Review your vision, then seal it with your email.</p>
+          <p className="hint">Read it back. If anything on this list is a compromise, change it now.</p>
 
           <div className="review-box">
-            <div className="subhead" style={{ marginTop: 0 }}><span className="cap">Your Perfect Ring</span></div>
+            <div className="subhead" style={{ marginTop: 0 }}><span className="cap">Your Specification</span></div>
             <ul>
               {reviewRows.map(([k, v]) => (
                 <li key={k}><span>{k}</span><b>{v}</b></li>
@@ -194,18 +195,18 @@ export default function Wizard() {
           </div>
 
           <div className="review-box">
-            <div className="subhead" style={{ marginTop: 0 }}><span className="cap">A Note to Your Suitor</span></div>
+            <div className="subhead" style={{ marginTop: 0 }}><span className="cap">In Your Own Words</span></div>
             <textarea
               className="writein"
               style={{ minHeight: 90, marginBottom: 0 }}
-              placeholder="Write something they'll read the moment they open your vault…"
+              placeholder="Anything you want them to know — why this stone, what you were thinking, or nothing to do with rings at all…"
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
 
           <div className="review-box gate">
-            <div className="subhead" style={{ marginTop: 0 }}><span className="cap">Seal the Vault</span></div>
+            <div className="subhead" style={{ marginTop: 0 }}><span className="cap">Seal It</span></div>
             <input
               type="email"
               placeholder="Your email…"
@@ -217,7 +218,7 @@ export default function Wizard() {
             </button>
             {status === 'error' && <div className="msg err">{errMsg}</div>}
             <div className="msg" style={{ color: 'var(--grey)' }}>
-              Free · Private · Yours to change anytime
+              Free · Private · Change any of it, any time you like
             </div>
           </div>
         </div>

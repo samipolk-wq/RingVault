@@ -25,7 +25,7 @@ export const STEPS: Step[] = [
   {
     key: 'stoneType',
     title: 'Your <em>stone</em>',
-    hint: 'Which stone speaks to you?',
+    hint: 'The one that actually stops you when you see it.',
     groups: [
       {
         sub: 'Type of Stone',
@@ -36,14 +36,14 @@ export const STEPS: Step[] = [
           { icon: 'emeraldst', label: 'Emerald' },
           { icon: 'sapphire', label: 'Sapphire' }
         ],
-        writeIn: 'Something else entirely? You are never limited — write it in…'
+        writeIn: 'Something no list would think to offer? Name it…'
       }
     ]
   },
   {
     key: 'stoneShape',
     title: 'The <em>cut</em>',
-    hint: 'The cut defines the character of your ring.',
+    hint: 'The shape people notice first, and the one you’ll catch out of the corner of your eye for fifty years. Choose it on purpose.',
     groups: [
       {
         sub: 'Shape of Stone',
@@ -58,14 +58,14 @@ export const STEPS: Step[] = [
           { icon: 'radiant', label: 'Radiant' },
           { icon: 'asscher', label: 'Asscher' }
         ],
-        writeIn: 'A cut we missed? Write it in…'
+        writeIn: 'A shape we have missed? Write it in…'
       }
     ]
   },
   {
     key: 'stoneQuality',
     title: 'Quality of <em>stone</em>',
-    hint: 'Color, cut, clarity — or leave it in their hands.',
+    hint: 'Decide what matters most to you. Whatever you pick is the right answer.',
     groups: [
       {
         sub: 'Quality Priority',
@@ -74,22 +74,22 @@ export const STEPS: Step[] = [
           { icon: 'spark', label: 'Color First' },
           { icon: 'princess', label: 'Cut First' },
           { icon: 'round', label: 'Clarity First' },
-          { icon: 'tux', label: "I'll leave it to them" }
+          { icon: 'tux', label: 'I trust their judgment here' }
         ],
-        writeIn: 'Your own rule of thumb? Write it in…'
+        writeIn: 'Your own rule of thumb? Say it plainly…'
       }
     ]
   },
   {
     key: 'stoneSize',
     title: 'Size of <em>stone</em>',
-    hint: 'Choose your minimum, and your dream.',
+    hint: 'Your floor, and your dream. Be honest about both.',
     slider: true
   },
   {
     key: 'style',
     title: 'Your <em>style</em>',
-    hint: 'The personality your ring will carry.',
+    hint: 'Classic, strange, heirloom, or nothing anyone has seen. Your hand, your call.',
     groups: [
       {
         sub: 'Ring Style',
@@ -102,14 +102,14 @@ export const STEPS: Step[] = [
           { icon: 'halo', label: 'Halo' },
           { icon: 'three', label: 'Three Stone' }
         ],
-        writeIn: 'A style of your own? Write it in…'
+        writeIn: 'Nothing here is you? Describe what is…'
       }
     ]
   },
   {
     key: 'band',
     title: 'The <em>band</em>',
-    hint: 'The foundation of it all.',
+    hint: 'The part that touches your skin every hour of every day. Worth an opinion.',
     groups: [
       {
         sub: 'Type of Metal',
@@ -121,7 +121,7 @@ export const STEPS: Step[] = [
           { icon: 'band', label: '18K Yellow Gold' },
           { icon: 'band', label: '18K Rose Gold' }
         ],
-        writeIn: 'Another metal? Write it in…'
+        writeIn: 'Another metal entirely?…'
       },
       {
         sub: 'Stones on the Band',
@@ -149,7 +149,7 @@ export const STEPS: Step[] = [
   {
     key: 'setting',
     title: 'The <em>setting</em>',
-    hint: 'What holds your stone in place.',
+    hint: 'How your stone sits, and how it catches light when you move.',
     groups: [
       {
         sub: 'Setting Style',
@@ -160,14 +160,14 @@ export const STEPS: Step[] = [
           { icon: 'ring', label: 'Six Prong' },
           { icon: 'round', label: 'Bezel' }
         ],
-        writeIn: 'Another idea? Write it in…'
+        writeIn: 'You have a better idea? Write it…'
       }
     ]
   },
   {
     key: 'inscription',
     title: 'The <em>inscription</em>',
-    hint: 'A secret message, engraved forever.',
+    hint: 'Words only the two of you will ever read. Or words only you will.',
     groups: [
       {
         sub: 'Engrave',
@@ -186,7 +186,7 @@ export const STEPS: Step[] = [
   {
     key: 'proposal',
     title: 'The <em>proposal</em>',
-    hint: 'An optional flourish — a few gentle hints. Skip freely.',
+    hint: 'Optional, and specific if you like. You are allowed preferences about the most photographed moment of your life.',
     optional: true,
     groups: [
       {
@@ -198,7 +198,7 @@ export const STEPS: Step[] = [
           { icon: 'dine', label: 'A Restaurant' },
           { icon: 'spark', label: 'Surprise Me' }
         ],
-        writeIn: 'Somewhere only the two of you know? Write it in…'
+        writeIn: 'Somewhere only the two of you would understand?…'
       },
       {
         sub: 'Surprises',

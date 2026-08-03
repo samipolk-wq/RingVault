@@ -13,6 +13,7 @@ export default function SuitorsPage() {
   const [middle, setMiddle] = useState('');
   const [school, setSchool] = useState('');
   const [suitorEmail, setSuitorEmail] = useState('');
+  const [limitMsg, setLimitMsg] = useState('');
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -55,11 +56,17 @@ export default function SuitorsPage() {
         body: JSON.stringify({ designId, suitorEmail, dob, middle, school })
       });
       const data = await res.json();
+      if (res.status === 429 || data.rateLimited) {
+        setLimitMsg(data.message || 'Too many attempts. Please try again tomorrow.');
+        setStage('failed');
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'Verification failed.');
       if (data.verified) {
         setToken(data.token);
         setStage('unlock');
       } else {
+        setLimitMsg('');
         setStage('failed');
       }
     } catch (e: unknown) {
@@ -187,11 +194,19 @@ export default function SuitorsPage() {
 
       {stage === 'failed' && (
         <div className="review-box">
-          <p className="hint" style={{ textAlign: 'left', margin: '0 0 26px' }}>
-            Those answers didn&apos;t match what they gave us. For their privacy we can&apos;t say
-            which one — but you&apos;re welcome to try again.
-          </p>
-          <button className="btn" onClick={() => { setStage('verify'); setErr(''); }}>Try Again</button>
+          {limitMsg ? (
+            <p className="hint" style={{ textAlign: 'left', margin: '0 0 26px' }}>
+              {limitMsg}
+            </p>
+          ) : (
+            <>
+              <p className="hint" style={{ textAlign: 'left', margin: '0 0 26px' }}>
+                Those answers didn&apos;t match what they gave us. For their privacy we can&apos;t
+                say which one — but you can try again.
+              </p>
+              <button className="btn" onClick={() => { setStage('verify'); setErr(''); }}>Try Again</button>
+            </>
+          )}
         </div>
       )}
 
