@@ -17,6 +17,12 @@ export default function Wizard() {
   const [details, setDetails] = useState<string[]>([]);
   const [email, setEmail] = useState('');
   const [note, setNote] = useState('');
+  // null until she chooses — this is a required question, not a default.
+  const [findable, setFindable] = useState<boolean | null>(null);
+  const [fullName, setFullName] = useState('');
+  const [dob, setDob] = useState('');
+  const [middle, setMiddle] = useState('');
+  const [school, setSchool] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
@@ -53,7 +59,22 @@ export default function Wizard() {
     return rows;
   }, [selections, minCt, dreamCt, details]);
 
+  const answersGiven = [dob, middle, school].filter((a) => a.trim()).length;
+  const nameLooksComplete = fullName.trim().split(/\s+/).filter(Boolean).length >= 2;
+  const readyToSeal =
+    findable === false || (findable === true && nameLooksComplete && answersGiven >= 2);
+
   async function save() {
+    if (findable === null) {
+      setStatus('error');
+      setErrMsg('Please choose whether someone can find your ring.');
+      return;
+    }
+    if (findable && !readyToSeal) {
+      setStatus('error');
+      setErrMsg('To be findable, add your full name and answer at least two questions.');
+      return;
+    }
     setStatus('saving');
     setErrMsg('');
     try {
@@ -64,6 +85,11 @@ export default function Wizard() {
           email,
           note,
           userId,
+          discoverable: findable === true,
+          fullName: findable ? fullName.trim() : '',
+          dob: findable ? dob.trim() : '',
+          middle: findable ? middle.trim() : '',
+          school: findable ? school.trim() : '',
           selections: Object.fromEntries(reviewRows)
         })
       });
@@ -84,8 +110,11 @@ export default function Wizard() {
           Safe <em>&amp; sound.</em>
         </h2>
         <p className="hint" style={{ maxWidth: 440, margin: '0 auto 40px' }}>
-          Your ring is in the vault, under {email}. Open your vault any time to visit it, refine
-          it, or leave a note — we&apos;ll send a private link, no password needed.
+          Your ring is in the vault, under {email}. Open it any time to visit, change your mind
+          about any detail, or leave a note — we&apos;ll send a private link, no password needed.
+          {findable === false
+            ? ' Right now nobody can find it. You can make yourself findable whenever you\u2019re ready.'
+            : ' You can now be found by name — and only by someone who can answer your questions.'}
         </p>
         <a className="btn" href="/enter">Open My Vault</a>
         &nbsp;&nbsp;&nbsp;
@@ -205,6 +234,79 @@ export default function Wizard() {
             />
           </div>
 
+          <div className="review-box">
+            <div className="subhead" style={{ marginTop: 0 }}>
+              <span className="cap">Who can find this?</span>
+            </div>
+            <p className="hint" style={{ textAlign: 'left', margin: '0 0 22px' }}>
+              Your ring is no use to anyone if nobody can reach it. Choose now — you can change
+              this whenever you like.
+            </p>
+
+            <div className="opts" style={{ gridTemplateColumns: '1fr' }}>
+              <div
+                className={`opt${findable === true ? ' sel' : ''}`}
+                style={{ textAlign: 'left', padding: '22px 24px' }}
+                onClick={() => { setFindable(true); setStatus('idle'); setErrMsg(''); }}
+                role="radio"
+                aria-checked={findable === true}
+                tabIndex={0}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setFindable(true)}
+              >
+                <b style={{ fontWeight: 500 }}>Someone who can answer my questions</b>
+                <div className="msg" style={{ color: 'var(--grey)', marginTop: 8, lineHeight: 1.6 }}>
+                  Your name becomes searchable. Anyone who finds you learns only that a vault
+                  exists — never what&apos;s inside. To open it they answer your questions, and
+                  they pay.
+                </div>
+              </div>
+
+              <div
+                className={`opt${findable === false ? ' sel' : ''}`}
+                style={{ textAlign: 'left', padding: '22px 24px' }}
+                onClick={() => { setFindable(false); setStatus('idle'); setErrMsg(''); }}
+                role="radio"
+                aria-checked={findable === false}
+                tabIndex={0}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setFindable(false)}
+              >
+                <b style={{ fontWeight: 500 }}>No one, for now</b>
+                <div className="msg" style={{ color: 'var(--grey)', marginTop: 8, lineHeight: 1.6 }}>
+                  Sealed completely. Not searchable, not openable — yours alone until you say
+                  otherwise.
+                </div>
+              </div>
+            </div>
+
+            {findable === true && (
+              <>
+                <div className="subhead">
+                  <span className="cap dim">Your name, as they&apos;d search it</span>
+                </div>
+                <input
+                  className="writein"
+                  placeholder="First and last name…"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+
+                <div className="subhead">
+                  <span className="cap dim">Two questions only they would know</span>
+                </div>
+                <p className="hint" style={{ textAlign: 'left', margin: '0 0 8px' }}>
+                  Answer at least two. Whoever opens your vault must get every one you set exactly
+                  right — so the more you fill in, the harder it is.
+                </p>
+                <input className="writein" placeholder="Your date of birth (MM/DD/YYYY)…" value={dob} onChange={(e) => setDob(e.target.value)} />
+                <input className="writein" placeholder="Your middle name…" value={middle} onChange={(e) => setMiddle(e.target.value)} />
+                <input className="writein" placeholder="Your high school…" value={school} onChange={(e) => setSchool(e.target.value)} />
+                <div className="msg" style={{ color: 'var(--grey)' }}>
+                  We store these scrambled, never as text. Even we can&apos;t read them back.
+                </div>
+              </>
+            )}
+          </div>
+
           <div className="review-box gate">
             <div className="subhead" style={{ marginTop: 0 }}><span className="cap">Seal It</span></div>
             <input
@@ -213,7 +315,12 @@ export default function Wizard() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <button className="btn" style={{ width: '100%' }} onClick={save} disabled={status === 'saving'}>
+            <button
+              className="btn"
+              style={{ width: '100%' }}
+              onClick={save}
+              disabled={status === 'saving' || findable === null || !readyToSeal}
+            >
               {status === 'saving' ? 'Sealing…' : 'Place in The Ring Vault'}
             </button>
             {status === 'error' && <div className="msg err">{errMsg}</div>}
