@@ -1,33 +1,30 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type DraftPhoto = {
   id: string;
   previewUrl: string | null;
   note: string;
-  uploading?: boolean;
 };
 
 /**
- * The photo book. She uploads reference images and says what she likes about
- * each one — "this band, but not the halo" tells a jeweler far more than the
- * picture alone.
+ * The photo book. Three ways in, because this is how people actually gather
+ * ring photos: paste from the clipboard (Pinterest, Instagram, a screenshot),
+ * drag a file in, or browse.
  *
- * Images are downscaled in the browser before upload. Phone photos are often
- * 5–8MB, which would exceed the serverless request limit; resizing to 2000px
- * keeps them well under it, makes uploads fast on a phone connection, and
- * loses nothing a jeweler would care about.
+ * Images are downscaled in the browser first. Phone photos run 5-8MB, which
+ * exceeds the serverless request limit; 2000px keeps them well under it and
+ * loses nothing a jeweler would notice.
  */
 const MAX_PHOTOS = 6;
 const MAX_EDGE = 2000;
 
-async function downscale(file: File): Promise<Blob> {
-  // Anything already small and web-safe can go as-is.
+async function downscale(file: Blob): Promise<Blob> {
   if (file.size < 700_000 && file.type === 'image/jpeg') return file;
 
   const bitmap = await createImageBitmap(file).catch(() => null);
-  if (!bitmap) return file; // e.g. HEIC in a browser that can't decode it
+  if (!bitmap) return file;
 
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);
@@ -59,52 +56,107 @@ export default function PhotoBook({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const [justAdded, setJustAdded] = useState(0);
 
-  async function handleFiles(files: FileList | null) {
-    if (!files?.length) return;
-    setErr('');
-    const room = MAX_PHOTOS - photos.length;
-    if (room <= 0) {
-      setErr(`You can add up to ${MAX_PHOTOS} photos.`);
-      return;
-    }
+  // Ref mirror so the paste listener always sees the current count without
+  // being torn down and rebuilt on every upload.
+  const countRef = useRef(photos.length);
+  countRef.current = photos.length;
 
-    setBusy(true);
-    for (const file of Array.from(files).slice(0, room)) {
-      try {
-        const blob = await downscale(file);
-        const form = new FormData();
-        form.append('file', blob, 'photo.jpg');
-        form.append('draftId', draftId);
+  const addImages = useCallback(
+    async (incoming: Blob[]) => {
+      if (!incoming.length) return;
+      setErr('');
+      const room = MAX_PHOTOS - countRef.current;
+      if (room <= 0) {
+        setErr('You can add up to ' + MAX_PHOTOS + ' photos.');
+        return;
+      }
 
-        const res = await fetch('/api/design/photo', { method: 'POST', body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Upload failed.');
+      setBusy(true);
+      let added = 0;
+      for (const raw of incoming.slice(0, room)) {
+        try {
+          const blob = await downscale(raw);
+          const form = new FormData();
+          form.append('file', blob, 'photo.jpg');
+          form.append('draftId', draftId);
 
-        setPhotos((prev) => [
-          ...prev,
-          { id: data.id, previewUrl: data.previewUrl, note: '' }
-        ]);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : 'Could not add that photo.');
+          const res = await fetch('/api/design/photo', { method: 'POST', body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Upload failed.');
+
+          setPhotos((prev) => [...prev, { id: data.id, previewUrl: data.previewUrl, note: '' }]);
+          countRef.current += 1;
+          added += 1;
+        } catch (e) {
+          setErr(e instanceof Error ? e.message : 'Could not add that photo.');
+        }
+      }
+      setBusy(false);
+      if (added) {
+        setJustAdded(added);
+        setTimeout(() => setJustAdded(0), 2600);
+      }
+      if (inputRef.current) inputRef.current.value = '';
+    },
+    [draftId, setPhotos]
+  );
+
+  // --- paste anywhere on the step ---
+  useEffect(() => {
+    async function onPaste(e: ClipboardEvent) {
+      const cd = e.clipboardData;
+      if (!cd) return;
+
+      const images: Blob[] = [];
+      for (const item of Array.from(cd.items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const f = item.getAsFile();
+          if (f) images.push(f);
+        }
+      }
+
+      if (images.length) {
+        e.preventDefault();
+        await addImages(images);
+        return;
+      }
+
+      // Copying an image from a website sometimes puts only its address on the
+      // clipboard, not the image itself. Say so plainly rather than appearing
+      // to ignore the paste.
+      const text = cd.getData('text/plain')?.trim();
+      if (text && /^https?:\/\/\S+$/i.test(text)) {
+        setErr(
+          'That copied a link rather than the picture. Right-click the image and choose "Copy image", or take a screenshot and paste that.'
+        );
       }
     }
-    setBusy(false);
-    if (inputRef.current) inputRef.current.value = '';
-  }
+
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [addImages]);
 
   async function remove(id: string) {
     setPhotos((prev) => prev.filter((p) => p.id !== id));
+    countRef.current = Math.max(0, countRef.current - 1);
     try {
-      await fetch(`/api/design/photo?id=${id}&draftId=${draftId}`, { method: 'DELETE' });
+      await fetch('/api/design/photo?id=' + id + '&draftId=' + draftId, { method: 'DELETE' });
     } catch {
-      /* the row is gone from her view either way; a stray file is harmless */
+      /* removed from her view regardless; a stray file is harmless */
     }
   }
 
   function setNote(id: string, note: string) {
     setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, note } : p)));
   }
+
+  const pasteKey =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.userAgent)
+      ? '\u2318V'
+      : 'Ctrl+V';
 
   return (
     <>
@@ -130,14 +182,7 @@ export default function PhotoBook({
                   style={{ width: 96, height: 96, objectFit: 'cover', flexShrink: 0 }}
                 />
               ) : (
-                <div
-                  style={{
-                    width: 96,
-                    height: 96,
-                    background: 'var(--champagne)',
-                    flexShrink: 0
-                  }}
-                />
+                <div style={{ width: 96, height: 96, background: 'var(--champagne)', flexShrink: 0 }} />
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <textarea
@@ -147,11 +192,7 @@ export default function PhotoBook({
                   value={p.note}
                   onChange={(e) => setNote(p.id, e.target.value)}
                 />
-                <button
-                  className="ulink"
-                  style={{ marginTop: 10, fontSize: 9.5 }}
-                  onClick={() => remove(p.id)}
-                >
+                <button className="ulink" style={{ marginTop: 10, fontSize: 9.5 }} onClick={() => remove(p.id)}>
                   Remove
                 </button>
               </div>
@@ -166,29 +207,55 @@ export default function PhotoBook({
         accept="image/jpeg,image/png,image/webp"
         multiple
         style={{ display: 'none' }}
-        onChange={(e) => handleFiles(e.target.files)}
+        onChange={(e) => addImages(Array.from(e.target.files || []))}
       />
 
       {photos.length < MAX_PHOTOS && (
         <div
           onClick={() => !busy && inputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+            if (files.length) addImages(files);
+          }}
           style={{
-            border: '1px dashed var(--line)',
+            border: '1px dashed ' + (dragging ? 'var(--gold-deep)' : 'var(--line)'),
+            background: dragging ? 'var(--champagne)' : '#fff',
             padding: '38px 20px',
             textAlign: 'center',
             cursor: busy ? 'default' : 'pointer',
-            background: '#fff'
+            transition: 'background 0.2s, border-color 0.2s'
           }}
         >
           <div className="cap" style={{ color: 'var(--gold-deep)' }}>
-            {busy ? 'Adding…' : photos.length ? 'Add another' : 'Choose photos'}
+            {busy
+              ? 'Adding…'
+              : dragging
+                ? 'Drop it here'
+                : photos.length
+                  ? 'Paste, drop, or browse for another'
+                  : 'Paste a photo, drop one here, or browse'}
           </div>
           <p className="hint" style={{ margin: '12px 0 0' }}>
-            Screenshots, saved pins, a photo of your grandmother&apos;s ring — anything at all.
+            Copy any picture and press{' '}
+            <b style={{ color: 'var(--ink)', fontWeight: 500 }}>{pasteKey}</b>. Screenshots, saved
+            pins, a photo of your grandmother&apos;s ring — anything at all.
           </p>
         </div>
       )}
 
+      {justAdded > 0 && (
+        <div className="msg ok">
+          {justAdded === 1 ? 'Photo added.' : justAdded + ' photos added.'} Tell us what you like
+          about {justAdded === 1 ? 'it' : 'them'} above.
+        </div>
+      )}
       {err && <div className="msg err">{err}</div>}
       <div className="msg" style={{ color: 'var(--grey)' }}>
         Private until you decide otherwise · Up to {MAX_PHOTOS} photos
