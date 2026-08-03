@@ -18,6 +18,8 @@ export async function POST(req: Request) {
     middle?: string;
     school?: string;
     notifyMode?: string;
+    draftId?: string;
+    photoNotes?: { id?: string; note?: string }[];
   };
   try {
     body = await req.json();
@@ -92,6 +94,33 @@ export async function POST(req: Request) {
   }
 
   const designId = data[0].id as string;
+
+  // Claim any photos uploaded during this session and save their notes.
+  // Deliberately after the design insert and non-fatal: a photo problem must
+  // never lose her ring, which is the thing she actually spent time on.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const draftId = String(body.draftId || '');
+  if (UUID_RE.test(draftId)) {
+    try {
+      for (const p of body.photoNotes || []) {
+        if (!p?.id || !UUID_RE.test(p.id)) continue;
+        await db
+          .from('design_photos')
+          .update({ note: String(p.note || '').slice(0, 500) })
+          .eq('id', p.id)
+          .eq('draft_id', draftId)
+          .is('design_id', null);
+      }
+      const { error: claimErr } = await db
+        .from('design_photos')
+        .update({ design_id: designId })
+        .eq('draft_id', draftId)
+        .is('design_id', null);
+      if (claimErr) console.error('photo claim failed:', claimErr.message);
+    } catch (e) {
+      console.error('photo claim threw:', e);
+    }
+  }
 
   // The confirmation email the success screen already promises. Not awaited into
   // the response: a mail problem must never make her think the save failed.

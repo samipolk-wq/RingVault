@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/Icon';
 import { STEPS, CONNOISSEUR_DETAILS } from '@/lib/taxonomy';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
+import PhotoBook, { type DraftPhoto } from '@/components/PhotoBook';
 
 type Selections = Record<string, string>;
 
@@ -17,6 +18,14 @@ export default function Wizard() {
   const [details, setDetails] = useState<string[]>([]);
   const [email, setEmail] = useState('');
   const [note, setNote] = useState('');
+  // Stable id for this design session, so photos uploaded before the ring is
+  // saved can be claimed by it afterwards.
+  const [draftId] = useState(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : '00000000-0000-4000-8000-000000000000'
+  );
+  const [photos, setPhotos] = useState<DraftPhoto[]>([]);
   // null until she chooses — this is a required question, not a default.
   const [findable, setFindable] = useState<boolean | null>(null);
   const [fullName, setFullName] = useState('');
@@ -56,8 +65,9 @@ export default function Wizard() {
     const rows: [string, string][] = Object.entries(selections);
     rows.push(['Min Carat', `${minCt} ct`], ['Dream Carat', `${dreamCt} ct`]);
     if (details.length) rows.push(['Connoisseur Details', details.join(', ')]);
+    if (photos.length) rows.push(['Photos', `${photos.length} attached`]);
     return rows;
-  }, [selections, minCt, dreamCt, details]);
+  }, [selections, minCt, dreamCt, details, photos]);
 
   const answersGiven = [dob, middle, school].filter((a) => a.trim()).length;
   const nameLooksComplete = fullName.trim().split(/\s+/).filter(Boolean).length >= 2;
@@ -85,6 +95,8 @@ export default function Wizard() {
           email,
           note,
           userId,
+          draftId,
+          photoNotes: photos.map((p) => ({ id: p.id, note: p.note })),
           discoverable: findable === true,
           fullName: findable ? fullName.trim() : '',
           dob: findable ? dob.trim() : '',
@@ -143,7 +155,9 @@ export default function Wizard() {
           <h2 dangerouslySetInnerHTML={{ __html: current.title }} />
           <p className="hint">{current.hint}</p>
 
-          {current.slider ? (
+          {current.photos ? (
+            <PhotoBook draftId={draftId} photos={photos} setPhotos={setPhotos} />
+          ) : current.slider ? (
             <>
               <div className="slider-wrap">
                 <div className="subhead"><span className="cap dim">The number you won&apos;t go below</span></div>

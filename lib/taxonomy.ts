@@ -18,6 +18,7 @@ export type Step = {
   hint: string;
   groups?: Group[];
   slider?: boolean;
+  photos?: boolean;
   optional?: boolean;
 };
 
@@ -61,6 +62,13 @@ export const STEPS: Step[] = [
         writeIn: 'A shape we have missed? Write it in…'
       }
     ]
+  },
+  {
+    key: 'photoBook',
+    title: 'Show us what you <em>mean</em>',
+    hint: 'Words only go so far. Add photos of rings you love and say what you like about each one — a jeweler will understand this faster than any list.',
+    photos: true,
+    optional: true
   },
   {
     key: 'stoneQuality',

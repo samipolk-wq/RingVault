@@ -8,6 +8,7 @@ type Deliverable = {
   selections: Record<string, string>;
   note: string | null;
   depositedAt: string;
+  photos?: { url: string; note: string | null }[];
 };
 
 export default function DeliverablePage() {
@@ -86,6 +87,41 @@ export default function DeliverablePage() {
             </li>
           ))}
         </ul>
+
+        {!!data.photos?.length && (
+          <div className="review-box">
+            <div className="subhead" style={{ marginTop: 0 }}>
+              <span className="cap">What {first} showed us</span>
+            </div>
+            <p className="hint" style={{ textAlign: 'left', margin: '0 0 20px' }}>
+              Rings {first} chose, in {first}&apos;s own words. Bring these to your jeweler
+              alongside the specification.
+            </p>
+            <div style={{ display: 'grid', gap: 18 }}>
+              {data.photos.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.url}
+                    alt=""
+                    style={{
+                      width: 132,
+                      height: 132,
+                      objectFit: 'cover',
+                      flexShrink: 0,
+                      border: '1px solid var(--line)'
+                    }}
+                  />
+                  {p.note && (
+                    <p style={{ fontStyle: 'italic', color: 'var(--grey)', lineHeight: 1.6, margin: 0 }}>
+                      &ldquo;{p.note}&rdquo;
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {data.note && (
           <div style={{

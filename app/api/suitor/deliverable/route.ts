@@ -87,7 +87,34 @@ export async function GET(req: Request) {
   }
 
   const d = designs[0];
+
+  // Her photo book. Signed URLs are minted here and only here — the bucket is
+  // private, so an expired or absent link reveals nothing. Generated after the
+  // paid check above, so an unpaid request never produces a usable URL.
+  let photos: { url: string; note: string | null }[] = [];
+  try {
+    const { data: photoRows } = await db
+      .from('design_photos')
+      .select('storage_path, note, sort_order')
+      .eq('design_id', unlock.design_id)
+      .order('sort_order', { ascending: true });
+
+    for (const row of photoRows || []) {
+      const { data: signed } = await db.storage
+        .from('ring-photos')
+        .createSignedUrl(row.storage_path as string, 60 * 60 * 24 * 7);
+      if (signed?.signedUrl) {
+        photos.push({ url: signed.signedUrl, note: (row.note as string) || null });
+      }
+    }
+  } catch (e) {
+    console.error('photo signing failed:', e);
+    // The specification is the deliverable; photos are a bonus. Never fail the
+    // whole page because storage had a bad moment.
+  }
+
   return NextResponse.json({
+    photos,
     paid: status === 'paid' || previewOK,
     name: d.full_name,
     selections: d.selections,
