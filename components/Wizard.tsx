@@ -5,6 +5,7 @@ import Icon from '@/components/Icon';
 import { STEPS, CONNOISSEUR_DETAILS } from '@/lib/taxonomy';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import PhotoBook, { type DraftPhoto } from '@/components/PhotoBook';
+import ShareCard from '@/components/ShareCard';
 
 type Selections = Record<string, string>;
 
@@ -34,6 +35,7 @@ export default function Wizard() {
   const [school, setSchool] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   // If she's already signed in, prefill her email and link the design to her account.
@@ -107,6 +109,7 @@ export default function Wizard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+      if (data.id) setSavedId(data.id as string);
       setStatus('saved');
     } catch (e: unknown) {
       setStatus('error');
@@ -131,6 +134,10 @@ export default function Wizard() {
         <a className="btn" href="/enter">Open My Vault</a>
         &nbsp;&nbsp;&nbsp;
         <a className="ulink" href="/">Return Home</a>
+
+        <div style={{ maxWidth: 560, margin: '0 auto' }}>
+          <ShareCard designId={savedId} />
+        </div>
       </div>
     );
   }
