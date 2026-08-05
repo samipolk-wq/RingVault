@@ -106,9 +106,10 @@ export async function POST(req: Request) {
       ip,
       success: false
     });
-    // Tell her someone tried, if she asked to be told. Fire-and-forget so a
-    // mail problem can never turn a failed guess into a 500.
-    void recordEvent({ designId, kind: 'verify_failed', actorEmail: suitorEmail || null });
+    // Tell her someone tried, if she asked to be told. Awaited, because a
+    // serverless container is frozen on response and would never run this
+    // otherwise. recordEvent catches its own errors, so this cannot 500.
+    await recordEvent({ designId, kind: 'verify_failed', actorEmail: suitorEmail || null });
     // Vague on purpose: never reveal which answer was wrong — or that she
     // blocked this person.
     return NextResponse.json({ verified: false }, { status: 200 });
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
     success: true
   });
 
-  void recordEvent({ designId, kind: 'verify_passed', actorEmail: suitorEmail || null });
+  await recordEvent({ designId, kind: 'verify_passed', actorEmail: suitorEmail || null });
 
   return NextResponse.json({ verified: true, token: unlock[0].access_token });
 }

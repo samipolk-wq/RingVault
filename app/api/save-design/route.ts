@@ -122,9 +122,14 @@ export async function POST(req: Request) {
     }
   }
 
-  // The confirmation email the success screen already promises. Not awaited into
-  // the response: a mail problem must never make her think the save failed.
-  void sendDepositConfirmation(designId, email);
+  // The confirmation email the success screen promises.
+  //
+  // This MUST be awaited. Netlify runs this as a serverless function, and the
+  // container is frozen the instant the response is returned — a fire-and-forget
+  // promise is simply never executed. It doesn't error; it silently never runs.
+  // sendDepositConfirmation swallows its own failures internally, so awaiting it
+  // still can't turn a mail problem into a failed save.
+  await sendDepositConfirmation(designId, email);
 
   return NextResponse.json({ ok: true, id: designId, discoverable: wantsDiscoverable });
 }
