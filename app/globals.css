@@ -173,7 +173,7 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 
 /* Print: the deliverable should print as a clean jeweler document. */
 @media print {
-  .nav, .btn, .ulink { display: none !important; }
+  .nav, .btn, .ulink, footer { display: none !important; }
   body { background: #fff; }
   .shell { padding: 0; max-width: 100%; }
 }
