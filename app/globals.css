@@ -79,6 +79,7 @@ body {
 .logotype {
   font-weight: 500; font-size: 20px;
   letter-spacing: 0.42em; text-indent: 0.42em;
+  white-space: nowrap;
   text-transform: uppercase; color: var(--ink);
   text-decoration: none;
 }
@@ -89,7 +90,11 @@ body {
   color: var(--grey); text-decoration: none; transition: color 0.3s;
 }
 .navsuitor:hover { color: var(--gold-deep); }
-@media (max-width: 620px) { .navsuitor { display: none; } }
+/* Previously hidden on mobile, which left no route to the suitor page at all
+   — the page that takes the money. Shrunk to fit instead. */
+@media (max-width: 620px) {
+  .navsuitor { left: 16px; font-size: 9px; letter-spacing: 0.12em; }
+}
 
 .navvault {
   position: absolute; right: 34px;
@@ -98,7 +103,9 @@ body {
   color: var(--grey); text-decoration: none; transition: color 0.3s;
 }
 .navvault:hover { color: var(--gold-deep); }
-@media (max-width: 620px) { .navvault { display: none; } }
+@media (max-width: 620px) {
+  .navvault { right: 16px; font-size: 9px; letter-spacing: 0.12em; }
+}
 
 /* ---- wizard ---- */
 .shell { max-width: 880px; margin: 0 auto; padding: 60px 24px 140px; }
@@ -169,6 +176,11 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 
 .progress { display: flex; gap: 7px; justify-content: center; margin-bottom: 44px; }
 .progress div { width: 32px; height: 1px; background: var(--line); transition: all 0.4s; }
+/* Ten steps at a fixed 32px overflows every phone. Let them shrink to fit. */
+@media (max-width: 560px) {
+  .progress { gap: 5px; }
+  .progress div { width: auto; flex: 1 1 0; min-width: 8px; }
+}
 .progress div.done { background: var(--gold); height: 2px; }
 
 /* Print: the deliverable should print as a clean jeweler document. */
@@ -187,3 +199,10 @@ input[type='range'] { width: 100%; accent-color: var(--gold); }
 .radio-row { transition: border-color 0.3s, background 0.3s; }
 .radio-row:hover { border-color: var(--gold) !important; background: var(--paper); }
 .radio-row input[type='radio'] { accent-color: var(--gold-deep); }
+
+@media (max-width: 620px) {
+  .logotype { font-size: 14px; letter-spacing: 0.26em; text-indent: 0.26em; }
+  /* Roomier boxes on small screens: 42px side padding leaves too little middle. */
+  .review-box { padding: 26px 20px; }
+  .shell { padding: 40px 18px 110px; }
+}
