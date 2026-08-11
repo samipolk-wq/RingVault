@@ -17,6 +17,7 @@ export default function Home() {
           <a className="btn" href="/design">Design Your Ring</a>
           <p className="msg" style={{ color: 'var(--grey)', marginTop: 22 }}>Free · Private · Nobody sees it until you decide</p>
           <p style={{ marginTop: 30 }}><a className="ulink" href="/enter">Already have a ring in the vault?</a></p>
+          <p style={{ marginTop: 20 }}><a className="ulink" href="/suitors">Looking for someone&apos;s ring?</a></p>
         </div>
         <div className="hero-art">
           {/* eslint-disable-next-line @next/next/no-img-element */}
