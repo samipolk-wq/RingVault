@@ -10,5 +10,9 @@ export function supabaseServer() {
   if (!url || !key) {
     throw new Error('Supabase env vars missing (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)');
   }
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    // Ownership and payment state must be read again after edits or refunds.
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) }
+  });
 }
