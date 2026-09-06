@@ -71,8 +71,49 @@ test('a concurrent successful fulfillment can serve the paid brief', async () =>
     {data:[{full_name:'Test Person',selections:{Stone:'Diamond'},note:null,created_at:'2026-09-06'}]}, {data:[]}]);
   const res = await handler.GET(request());
   assert.equal(res.status,200);
+  assert.equal(res.headers.get('cache-control'), 'private, no-store, max-age=0');
   assert.equal((await res.json()).paid,true);
   assert.equal(notifications.length,0);
+});
+test('refunded access is denied without returning or caching ring details', async () => {
+  const {handler,db} = setup(deliverable,[{data:[{id:'u1',status:'refunded',stripe_session_id:'cs_test_fixture'}]}]);
+  const res = await handler.GET(request());
+  assert.equal(res.status,402);
+  assert.equal(res.headers.get('cache-control'), 'private, no-store, max-age=0');
+  assert.deepEqual(await res.json(), {error:'payment_required',paid:false});
+  assert.ok(!db.calls.some(c => c[0]==='designs'));
+});
+test('server Supabase client reads the changed payment state instead of a cached paid row', async () => {
+  const oldFetch = global.fetch;
+  const oldUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const oldKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  let state = 'paid';
+  let cached;
+  const policies = [];
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://fixture.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'fixture-service-key';
+  global.fetch = async (_input, init) => {
+    policies.push(init.cache);
+    // Simulate the framework data cache retaining the first successful read.
+    const rows = [{status:state}];
+    if (init.cache !== 'no-store') cached ||= rows;
+    return Response.json(init.cache === 'no-store' ? rows : cached);
+  };
+  try {
+    const {supabaseServer} = load('lib/supabaseServer.ts', {
+      '@supabase/supabase-js': require('@supabase/supabase-js')
+    });
+    const db = supabaseServer();
+    const read = () => db.from('unlocks').select('status').eq('id','u1');
+    assert.equal((await read()).data[0].status,'paid');
+    state = 'refunded';
+    assert.equal((await read()).data[0].status,'refunded');
+    assert.deepEqual(policies,['no-store','no-store']);
+  } finally {
+    global.fetch = oldFetch;
+    if(oldUrl===undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL; else process.env.NEXT_PUBLIC_SUPABASE_URL=oldUrl;
+    if(oldKey===undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY=oldKey;
+  }
 });
 test('the old preview flag cannot bypass payment', async () => {
   const old = process.env.ALLOW_UNPAID_PREVIEW;
