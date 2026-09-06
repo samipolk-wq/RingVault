@@ -4,6 +4,14 @@ import { stripe } from '@/lib/stripe';
 import { sendUnlockDeliverable, recordEvent } from '@/lib/notify';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+function privateJson(body: unknown, init?: ResponseInit) {
+  return NextResponse.json(body, {
+    ...init,
+    headers: { 'Cache-Control': 'private, no-store, max-age=0' }
+  });
+}
 
 /**
  * Step 4: the jeweler-ready deliverable, gated by a paid unlock token.
@@ -20,7 +28,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get('token') || '';
-  if (!token) return NextResponse.json({ error: 'Missing token' }, { status: 400 });
+  if (!token) return privateJson({ error: 'Missing token' }, { status: 400 });
 
   const db = supabaseServer();
   const { data: unlocks, error } = await db
@@ -30,7 +38,7 @@ export async function GET(req: Request) {
     .limit(1);
 
   if (error || !unlocks || unlocks.length === 0) {
-    return NextResponse.json({ error: 'That link is not valid.' }, { status: 404 });
+    return privateJson({ error: 'That link is not valid.' }, { status: 404 });
   }
 
   const unlock = unlocks[0];
@@ -83,7 +91,7 @@ export async function GET(req: Request) {
   }
 
   if (status !== 'paid') {
-    return NextResponse.json({ error: 'payment_required', paid: false }, { status: 402 });
+    return privateJson({ error: 'payment_required', paid: false }, { status: 402 });
   }
 
   const { data: designs } = await db
@@ -93,7 +101,7 @@ export async function GET(req: Request) {
     .limit(1);
 
   if (!designs || designs.length === 0) {
-    return NextResponse.json({ error: 'That vault could not be found.' }, { status: 404 });
+    return privateJson({ error: 'That vault could not be found.' }, { status: 404 });
   }
 
   const d = designs[0];
@@ -123,7 +131,7 @@ export async function GET(req: Request) {
     // whole page because storage had a bad moment.
   }
 
-  return NextResponse.json({
+  return privateJson({
     photos,
     paid: true,
     name: d.full_name,
