@@ -36,7 +36,6 @@ export default function Wizard() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
   const [savedId, setSavedId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
   // If she's already signed in, prefill her email and link the design to her account.
   useEffect(() => {
@@ -45,7 +44,6 @@ export default function Wizard() {
         const sb = supabaseBrowser();
         const { data: { session } } = await sb.auth.getSession();
         if (session?.user) {
-          setUserId(session.user.id);
           if (session.user.email) setEmail(session.user.email);
         }
       } catch {
@@ -90,13 +88,16 @@ export default function Wizard() {
     setStatus('saving');
     setErrMsg('');
     try {
+      const { data: { session } } = await supabaseBrowser().auth.getSession();
       const res = await fetch('/api/save-design', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {})
+        },
         body: JSON.stringify({
           email,
           note,
-          userId,
           draftId,
           photoNotes: photos.map((p) => ({ id: p.id, note: p.note })),
           discoverable: findable === true,
