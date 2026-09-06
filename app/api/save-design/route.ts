@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { hashAnswer, nameKey } from '@/lib/verify';
 import { sendDepositConfirmation } from '@/lib/notify';
+import { requestUser } from '@/lib/requestUser';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -30,7 +31,6 @@ export async function POST(req: Request) {
   const email = (body.email || '').trim().toLowerCase();
   const selections = body.selections || {};
   const note = (body.note || '').slice(0, 2000);
-  const userId = typeof body.userId === 'string' ? body.userId : null;
 
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
@@ -43,8 +43,17 @@ export async function POST(req: Request) {
   }
 
   const db = supabaseServer();
+  let user;
+  try {
+    user = await requestUser(req, db);
+  } catch {
+    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 });
+  }
+  if (user && user.email?.toLowerCase() !== email) {
+    return NextResponse.json({ error: 'Use your signed-in email to save this ring.' }, { status: 400 });
+  }
   const row: Record<string, unknown> = { email, selections, note };
-  if (userId) row.user_id = userId;
+  if (user) row.user_id = user.id;
 
   const MODES = ['everything', 'discreet', 'nothing'];
   row.notify_mode = MODES.includes(String(body.notifyMode)) ? body.notifyMode : 'discreet';
