@@ -36,13 +36,13 @@ export default function DeliverablePage() {
   if (state === 'unpaid') {
     return (
       <div className="shell" style={{ maxWidth: 560, textAlign: 'center', paddingTop: 120 }}>
-        <div className="cap">Almost There</div>
-        <h1 style={{ fontSize: 36, fontWeight: 300, margin: '20px 0 14px' }}>One step <em>remains.</em></h1>
+        <div className="cap">The Ring Vault</div>
+        <h1 style={{ fontSize: 36, fontWeight: 300, margin: '20px 0 14px' }}>This ring is <em>sealed.</em></h1>
         <p className="hint" style={{ maxWidth: 400, margin: '0 auto 30px' }}>
-          This ring is still sealed. Complete the payment and it opens immediately — and stays
-          open, at this same link, for good.
+          This link does not have an active paid unlock. If your payment was refunded,
+          access has ended. Otherwise, return to the search to verify the ring and complete checkout.
         </p>
-        <a className="btn" href="/suitors">Continue to Payment</a>
+        <a className="btn" href="/suitors">Return to Ring Search</a>
       </div>
     );
   }
