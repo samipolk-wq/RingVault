@@ -23,18 +23,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const token = (body.token || '').trim();
+  const token = typeof body?.token === 'string' ? body.token.trim() : '';
   if (!token) return NextResponse.json({ error: 'Missing token' }, { status: 400 });
 
   const db = supabaseServer();
 
   const { data: unlocks, error } = await db
     .from('unlocks')
-    .select('id, design_id, suitor_email, status')
+    .select('id, design_id, suitor_email, status, stripe_session_id, amount_cents')
     .eq('access_token', token)
     .limit(1);
 
-  if (error || !unlocks || unlocks.length === 0) {
+  if (error) return NextResponse.json({ error: 'Checkout is temporarily unavailable.' }, { status: 503 });
+  if (!unlocks || unlocks.length === 0) {
     return NextResponse.json({ error: 'That link is not valid.' }, { status: 404 });
   }
 
@@ -46,6 +47,27 @@ export async function POST(req: Request) {
   }
   if (unlock.status === 'refunded') {
     return NextResponse.json({ error: 'This unlock was refunded.' }, { status: 409 });
+  }
+  if (unlock.status !== 'pending') {
+    return NextResponse.json({ error: 'This unlock cannot start checkout.' }, { status: 409 });
+  }
+
+  // Once a session is stored, reuse it. Never create a second payable
+  // session for this unlock, including after Stripe forgets idempotency keys.
+  if (unlock.stripe_session_id) {
+    try {
+      const existing = await stripe().checkout.sessions.retrieve(unlock.stripe_session_id);
+      if (existing.metadata?.unlock_id !== unlock.id) throw new Error('Session mismatch');
+      if (existing.payment_status === 'paid') {
+        return NextResponse.json({ url: `/deliverable?token=${encodeURIComponent(token)}` });
+      }
+      if (existing.status === 'open' && existing.url) {
+        return NextResponse.json({ url: existing.url, price: formatPrice(unlock.amount_cents) });
+      }
+      return NextResponse.json({ error: 'This checkout has ended. Please find and verify the ring again to start a new checkout.' }, { status: 409 });
+    } catch {
+      return NextResponse.json({ error: 'Could not retrieve checkout. Please try again.' }, { status: 503 });
+    }
   }
 
   const { data: designs } = await db
@@ -78,14 +100,22 @@ export async function POST(req: Request) {
       metadata: { unlock_id: unlock.id as string, access_token: token },
       success_url: `${origin}/deliverable?token=${token}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/suitors?canceled=1`
-    });
+    }, { idempotencyKey: `ring-vault-unlock:${unlock.id}` });
 
     // Record the intended amount and session so the webhook and any later
     // reconciliation agree on what was owed.
-    await db
+    const { data: saved, error: saveError } = await db
       .from('unlocks')
       .update({ amount_cents: amount, stripe_session_id: session.id })
-      .eq('id', unlock.id);
+      .eq('id', unlock.id)
+      .eq('status', 'pending')
+      .select('id');
+
+    if (saveError || !saved?.length || !session.url) {
+      // Do not expose a payable URL without a persisted association. A retry
+      // uses the same Stripe idempotency key and can finish saving the session.
+      return NextResponse.json({ error: 'Could not prepare checkout. Please try again.' }, { status: 503 });
+    }
 
     return NextResponse.json({ url: session.url, price: formatPrice(amount) });
   } catch (e) {
