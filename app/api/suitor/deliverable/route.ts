@@ -34,7 +34,6 @@ export async function GET(req: Request) {
   }
 
   const unlock = unlocks[0];
-  const previewOK = process.env.ALLOW_UNPAID_PREVIEW === 'true';
   let status = unlock.status as string;
 
   // Reconcile against Stripe when the row is still pending. Refunded rows are
@@ -45,18 +44,19 @@ export async function GET(req: Request) {
         unlock.stripe_session_id as string
       );
       if (session.payment_status === 'paid' && session.metadata?.unlock_id === unlock.id) {
-        const { data: updated } = await db
+        const { data: updated, error: paymentError } = await db
           .from('unlocks')
           .update({ status: 'paid', paid_at: new Date().toISOString() })
           .eq('id', unlock.id)
           .eq('status', 'pending')          // don't clobber a concurrent webhook
           .select('id');
 
-        status = 'paid';
+        if (paymentError) throw paymentError;
 
         // First writer sends the emails, so the webhook and this path can't
         // both notify. The dedupe keys make a double-send impossible anyway.
         if (updated?.length) {
+          status = 'paid';
           await sendUnlockDeliverable(unlock.id as string);
           await recordEvent({
             designId: unlock.design_id as string,
@@ -64,6 +64,16 @@ export async function GET(req: Request) {
             actorEmail: (unlock.suitor_email as string) || null,
             dedupeKey: `unlock_paid:${unlock.id}`
           });
+        } else {
+          // A concurrent refund or fulfillment may have won. Trust the
+          // persisted state, not the Stripe session's historical payment flag.
+          const { data: current, error: currentError } = await db
+            .from('unlocks')
+            .select('status')
+            .eq('id', unlock.id)
+            .single();
+          if (currentError) throw currentError;
+          status = current?.status || 'pending';
         }
       }
     } catch (e) {
@@ -72,7 +82,7 @@ export async function GET(req: Request) {
     }
   }
 
-  if (status !== 'paid' && !previewOK) {
+  if (status !== 'paid') {
     return NextResponse.json({ error: 'payment_required', paid: false }, { status: 402 });
   }
 
@@ -115,7 +125,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     photos,
-    paid: status === 'paid' || previewOK,
+    paid: true,
     name: d.full_name,
     selections: d.selections,
     note: d.note,
