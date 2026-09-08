@@ -4,7 +4,9 @@ import { supabaseServer } from '@/lib/supabaseServer';
 const STEPS = new Set(['stoneType','stoneShape','photoBook','stoneQuality','stoneSize','style','band','setting','inscription','proposal','review','saved']);
 export async function POST(req: Request) {
   const reply = (status: number) => new NextResponse(null, {status, headers:{'Cache-Control':'no-store'}});
-  if (req.headers.get('origin') !== new URL(req.url).origin) return reply(403);
+  const publicUrl = (process.env.CONTEXT === 'deploy-preview' ? process.env.DEPLOY_PRIME_URL : undefined)
+    || process.env.NEXT_PUBLIC_SITE_URL || req.url;
+  if (req.headers.get('origin') !== new URL(publicUrl).origin) return reply(403);
   // Bound streamed bytes too: Content-Length is not trusted.
   let raw = '';
   const reader = req.body?.getReader();
