@@ -33,7 +33,7 @@ export async function GET(req: Request) {
   const db = supabaseServer();
   const { data: unlocks, error } = await db
     .from('unlocks')
-    .select('id, design_id, status, stripe_session_id, suitor_email')
+    .select('id, design_id, status, stripe_session_id, suitor_email, amount_cents')
     .eq('access_token', token)
     .limit(1);
 
@@ -51,7 +51,10 @@ export async function GET(req: Request) {
       const session = await stripe().checkout.sessions.retrieve(
         unlock.stripe_session_id as string
       );
-      if (session.payment_status === 'paid' && session.metadata?.unlock_id === unlock.id) {
+      if (session.payment_status === 'paid' && session.metadata?.unlock_id === unlock.id &&
+          session.id === unlock.stripe_session_id && session.mode === 'payment' &&
+          session.currency === 'usd' && Number.isInteger(unlock.amount_cents) &&
+          session.amount_total === unlock.amount_cents && unlock.amount_cents > 0) {
         const { data: updated, error: paymentError } = await db
           .from('unlocks')
           .update({ status: 'paid', paid_at: new Date().toISOString() })
