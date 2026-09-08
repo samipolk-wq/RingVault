@@ -174,7 +174,7 @@ export default function VaultPage() {
               ))}
             </ul>
             <div style={{ marginTop: 26, textAlign: 'right' }}>
-              <a className="ulink" href="/design">Refine My Ring</a>
+              <a className="ulink" href={`/edit?id=${encodeURIComponent(design.id)}`}>Refine My Ring</a>
             </div>
           </div>
 
