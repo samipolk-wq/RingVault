@@ -10,7 +10,7 @@ export default function Privacy() {
   return (
     <div className="shell" style={{ maxWidth: 700 }}>
       <div className="wtop">
-        <span className="cap dim">Last updated August 2026</span>
+        <span className="cap dim">Last updated September 2026</span>
         <span className="cap">Privacy</span>
       </div>
 
@@ -56,6 +56,17 @@ export default function Privacy() {
       <p style={P}>
         <b>Technical information</b> — IP addresses attached to failed verification attempts, so we
         can stop somebody guessing their way into your vault.
+      </p>
+
+      <h2 style={H}>Optional step progress</h2>
+      <p style={P}>
+        If you check the optional improvement box, we record which questionnaire steps you visit
+        and whether the saved screen appears. A random identifier lasts up to 24 hours in your
+        browser tab and is not linked to your account or ring. These records contain no answers,
+        photographs, names, email addresses, IP addresses or page links. Preview and production
+        visits are counted separately. Unchecking stops future collection; earlier records remain.
+        Records older than 30 days are removed when new progress is recorded. Our hosting
+        provider may separately process ordinary request logs to operate the site.
       </p>
 
       <h2 style={H}>What being &ldquo;findable&rdquo; actually means</h2>
