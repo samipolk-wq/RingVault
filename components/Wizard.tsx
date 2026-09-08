@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/components/Icon';
+import ProgressConsent from '@/components/ProgressConsent';
 import { STEPS, CONNOISSEUR_DETAILS } from '@/lib/taxonomy';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import PhotoBook, { type DraftPhoto } from '@/components/PhotoBook';
@@ -130,6 +131,7 @@ export default function Wizard() {
   if (status === 'saved') {
     return (
       <div className="shell" style={{ textAlign: 'center', paddingTop: 120 }}>
+        <ProgressConsent step="saved" />
         <div className="cap">The Ring Vault</div>
         <h2 style={{ fontSize: 40, fontWeight: 300, margin: '24px 0 18px' }}>
           Safe <em>&amp; sound.</em>
@@ -161,6 +163,7 @@ export default function Wizard() {
         <span className="cap">Your Specification</span>
       </div>
 
+      <ProgressConsent step={atReview ? 'review' : current.key} />
       <div className="progress">
         {STEPS.map((s, i) => (
           <div key={s.key} className={i <= step ? 'done' : ''} />
