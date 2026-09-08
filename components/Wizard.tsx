@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/components/Icon';
+import ProgressConsent from '@/components/ProgressConsent';
 import { STEPS, CONNOISSEUR_DETAILS } from '@/lib/taxonomy';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
 import PhotoBook, { type DraftPhoto } from '@/components/PhotoBook';
@@ -13,6 +14,15 @@ const ORDINALS = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'
 
 export default function Wizard() {
   const [step, setStep] = useState(0);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef(0);
+  useEffect(() => {
+    if (previousStep.current !== step) {
+      stepHeading.current?.focus({ preventScroll: true });
+      stepHeading.current?.scrollIntoView({ block: 'start' });
+      previousStep.current = step;
+    }
+  }, [step]);
   const [selections, setSelections] = useState<Selections>({});
   const [minCt, setMinCt] = useState(1);
   const [dreamCt, setDreamCt] = useState(2);
@@ -36,7 +46,6 @@ export default function Wizard() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
   const [savedId, setSavedId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
   // If she's already signed in, prefill her email and link the design to her account.
   useEffect(() => {
@@ -45,7 +54,6 @@ export default function Wizard() {
         const sb = supabaseBrowser();
         const { data: { session } } = await sb.auth.getSession();
         if (session?.user) {
-          setUserId(session.user.id);
           if (session.user.email) setEmail(session.user.email);
         }
       } catch {
@@ -90,13 +98,16 @@ export default function Wizard() {
     setStatus('saving');
     setErrMsg('');
     try {
+      const { data: { session } } = await supabaseBrowser().auth.getSession();
       const res = await fetch('/api/save-design', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {})
+        },
         body: JSON.stringify({
           email,
           note,
-          userId,
           draftId,
           photoNotes: photos.map((p) => ({ id: p.id, note: p.note })),
           discoverable: findable === true,
@@ -120,6 +131,7 @@ export default function Wizard() {
   if (status === 'saved') {
     return (
       <div className="shell" style={{ textAlign: 'center', paddingTop: 120 }}>
+        <ProgressConsent step="saved" />
         <div className="cap">The Ring Vault</div>
         <h2 style={{ fontSize: 40, fontWeight: 300, margin: '24px 0 18px' }}>
           Safe <em>&amp; sound.</em>
@@ -151,6 +163,7 @@ export default function Wizard() {
         <span className="cap">Your Specification</span>
       </div>
 
+      <ProgressConsent step={atReview ? 'review' : current.key} />
       <div className="progress">
         {STEPS.map((s, i) => (
           <div key={s.key} className={i <= step ? 'done' : ''} />
@@ -159,7 +172,7 @@ export default function Wizard() {
 
       {!atReview && current && (
         <div className="wstep">
-          <h2 dangerouslySetInnerHTML={{ __html: current.title }} />
+          <h2 ref={stepHeading} tabIndex={-1} style={{ scrollMarginTop: 90 }} dangerouslySetInnerHTML={{ __html: current.title }} />
           <p className="hint">{current.hint}</p>
 
           {current.photos ? (
@@ -169,13 +182,13 @@ export default function Wizard() {
               <div className="slider-wrap">
                 <div className="subhead"><span className="cap dim">The number you won&apos;t go below</span></div>
                 <input
-                  type="range" min={0.25} max={5} step={0.25} value={minCt}
+                  aria-label="Minimum carat size" type="range" min={0.25} max={5} step={0.25} value={minCt}
                   onChange={(e) => setMinCt(Number(e.target.value))}
                 />
                 <div className="carat-val">{minCt} carats</div>
                 <div className="subhead"><span className="cap dim">The number you actually want</span></div>
                 <input
-                  type="range" min={0.25} max={8} step={0.25} value={dreamCt}
+                  aria-label="Dream carat size" type="range" min={0.25} max={8} step={0.25} value={dreamCt}
                   onChange={(e) => setDreamCt(Number(e.target.value))}
                 />
                 <div className="carat-val">{dreamCt} carats</div>
@@ -187,7 +200,9 @@ export default function Wizard() {
               <div className="subhead"><span className="cap dim">The connoisseur&apos;s details — skip freely</span></div>
               <div className="opts">
                 {CONNOISSEUR_DETAILS.map((d) => (
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={details.includes(d)}
                     key={d}
                     className={`opt${details.includes(d) ? ' sel' : ''}`}
                     onClick={() =>
@@ -197,7 +212,7 @@ export default function Wizard() {
                     }
                   >
                     {d}
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
@@ -207,19 +222,22 @@ export default function Wizard() {
                 <div className="subhead"><span className="cap dim">{g.sub}</span></div>
                 <div className="opts">
                   {g.opts.map((o) => (
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={selections[g.field] === o.label}
                       key={o.label}
                       className={`opt${selections[g.field] === o.label ? ' sel' : ''}`}
                       onClick={() => setSel(g.field, o.label)}
                     >
                       <Icon name={o.icon} />
                       {o.label}
-                    </div>
+                    </button>
                   ))}
                 </div>
                 {g.writeIn && (
                   <input
                     className="writein"
+                    aria-label={`${g.field}: your own answer`}
                     placeholder={g.writeIn}
                     onBlur={(e) => setSel(g.field, e.target.value.trim())}
                   />
@@ -232,7 +250,7 @@ export default function Wizard() {
 
       {atReview && (
         <div className="wstep">
-          <h2>Place your ring <em>into the vault</em></h2>
+          <h2 ref={stepHeading} tabIndex={-1} style={{ scrollMarginTop: 90 }}>Place your ring <em>into the vault</em></h2>
           <p className="hint">Read it back. If anything on this list is a compromise, change it now.</p>
 
           <div className="review-box">

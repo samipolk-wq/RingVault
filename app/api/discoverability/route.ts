@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { hashAnswer, nameKey } from '@/lib/verify';
+import { requestUser } from '@/lib/requestUser';
 
 /**
  * She controls this entirely. Nothing here is required, and turning
@@ -26,19 +27,25 @@ export async function POST(req: Request) {
   }
 
   const designId = (body.designId || '').trim();
-  const userId = (body.userId || '').trim();
-  if (!designId || !userId) {
-    return NextResponse.json({ error: 'Missing design or user' }, { status: 400 });
+  if (!designId) {
+    return NextResponse.json({ error: 'Missing design' }, { status: 400 });
   }
 
   const db = supabaseServer();
+  let user;
+  try {
+    user = await requestUser(req, db);
+  } catch {
+    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 });
+  }
+  if (!user) return NextResponse.json({ error: 'Please sign in.' }, { status: 401 });
 
   // Confirm this design really belongs to this user before changing anything.
   const { data: owned } = await db
     .from('designs')
-    .select('id')
+    .select('id, full_name, verify_dob_hash, verify_middle_hash, verify_school_hash')
     .eq('id', designId)
-    .eq('user_id', userId)
+    .eq('user_id', user.id)
     .limit(1);
 
   if (!owned || owned.length === 0) {
@@ -61,7 +68,15 @@ export async function POST(req: Request) {
     patch.blocked_names = body.blockedNames.filter((n) => typeof n === 'string').slice(0, 25);
   }
 
-  const { error } = await db.from('designs').update(patch).eq('id', designId);
+  const merged = { ...owned[0], ...patch };
+  if (patch.discoverable && (
+    String(merged.full_name || '').trim().split(/\s+/).filter(Boolean).length < 2 ||
+    [merged.verify_dob_hash, merged.verify_middle_hash, merged.verify_school_hash].filter(Boolean).length < 2
+  )) {
+    return NextResponse.json({ error: 'Add your full name and at least two confirmation answers.' }, { status: 400 });
+  }
+
+  const { error } = await db.from('designs').update(patch).eq('id', designId).eq('user_id', user.id);
   if (error) {
     console.error('discoverability update failed:', error.message);
     return NextResponse.json({ error: 'Could not save those settings.' }, { status: 500 });

@@ -31,9 +31,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  if (!body || typeof body !== 'object' || Array.isArray(body) ||
+      Object.values(body).some(value => typeof value !== 'string' || value.length > 500)) {
+    return NextResponse.json({ error: 'Invalid verification details' }, { status: 400 });
+  }
   const designId = (body.designId || '').trim();
   const suitorEmail = (body.suitorEmail || '').trim().toLowerCase();
-  if (!designId) return NextResponse.json({ error: 'Missing design' }, { status: 400 });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(designId) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(suitorEmail)) {
+    return NextResponse.json({ error: 'A valid vault and email are required' }, { status: 400 });
+  }
+  const unavailable = () => NextResponse.json(
+    { verified: false, error: 'Verification is temporarily unavailable. Please try again shortly.' },
+    { status: 503 }
+  );
 
   const db = supabaseServer();
   const ip = (req.headers.get('x-nf-client-connection-ip') ||
@@ -43,17 +54,22 @@ export async function POST(req: Request) {
   // --- succeeds is never penalised for a typo earlier in the evening.
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   {
-    const ors = [`suitor_email.eq.${suitorEmail}`];
-    if (ip) ors.push(`ip.eq.${ip}`);
-    const { count } = await db
-      .from('verify_attempts')
-      .select('id', { count: 'exact', head: true })
-      .eq('design_id', designId)
-      .eq('success', false)
-      .gte('created_at', since)
-      .or(ors.join(','));
-
-    if ((count || 0) >= MAX_FAILURES_PER_DAY) {
+    // Separate parameterized filters avoid interpreting an email as filter syntax.
+    const filters = [['suitor_email', suitorEmail], ...(ip ? [['ip', ip]] : [])];
+    let limited = false;
+    try {
+      for (const [column, value] of filters) {
+        const { count, error } = await db.from('verify_attempts')
+          .select('id', { count: 'exact', head: true })
+          .eq('design_id', designId).eq('success', false)
+          .gte('created_at', since).eq(column, value);
+        if (error || typeof count !== 'number') return unavailable();
+        if (count >= MAX_FAILURES_PER_DAY) limited = true;
+      }
+    } catch {
+      return unavailable();
+    }
+    if (limited) {
       // Deliberately does not say how many attempts remain or when the window
       // resets — that information only helps someone scripting this.
       return NextResponse.json(
@@ -100,12 +116,13 @@ export async function POST(req: Request) {
   if (row.verify_school_hash) checks.push(hashesMatch(hashAnswer(body.school || ''), row.verify_school_hash));
 
   if (isBlocked || checks.length === 0 || checks.some((ok) => !ok)) {
-    await db.from('verify_attempts').insert({
+    const { error: attemptError } = await db.from('verify_attempts').insert({
       design_id: designId,
       suitor_email: suitorEmail || null,
       ip,
       success: false
     });
+    if (attemptError) return unavailable();
     // Tell her someone tried, if she asked to be told. Awaited, because a
     // serverless container is frozen on response and would never run this
     // otherwise. recordEvent catches its own errors, so this cannot 500.

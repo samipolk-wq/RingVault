@@ -44,9 +44,10 @@ export async function POST(req: Request) {
       case 'checkout.session.async_payment_succeeded': {
         const session = event.data.object as Stripe.Checkout.Session;
         const unlockId = session.metadata?.unlock_id;
-        if (session.payment_status !== 'paid' || !unlockId) break;
+        if (session.payment_status !== 'paid' || !unlockId || session.mode !== 'payment' ||
+            session.currency !== 'usd' || !Number.isInteger(session.amount_total) || !session.amount_total) break;
 
-        const { data: updated } = await db
+        const { data: updated, error: paymentError } = await db
           .from('unlocks')
           .update({
             status: 'paid',
@@ -54,8 +55,12 @@ export async function POST(req: Request) {
             stripe_session_id: session.id
           })
           .eq('id', unlockId)
-          .neq('status', 'refunded')
+          .eq('status', 'pending')
+          .eq('stripe_session_id', session.id)
+          .eq('amount_cents', session.amount_total)
           .select('id, design_id, suitor_email');
+
+        if (paymentError) throw paymentError;
 
         if (updated?.length) {
           // His deliverable link always. Her alert only if she asked for it.
@@ -84,11 +89,14 @@ export async function POST(req: Request) {
         if (!unlockId) break;
 
         // Re-seal the vault. /api/suitor/deliverable stops serving immediately.
-        const { data: refunded } = await db
+        const { data: refunded, error: refundError } = await db
           .from('unlocks')
           .update({ status: 'refunded' })
           .eq('id', unlockId)
+          .eq('stripe_session_id', sessions.data[0].id)
           .select('design_id');
+
+        if (refundError) throw refundError;
 
         if (refunded?.length) {
           await recordEvent({

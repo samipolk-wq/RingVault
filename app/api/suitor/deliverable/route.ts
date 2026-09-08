@@ -4,6 +4,14 @@ import { stripe } from '@/lib/stripe';
 import { sendUnlockDeliverable, recordEvent } from '@/lib/notify';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+function privateJson(body: unknown, init?: ResponseInit) {
+  return NextResponse.json(body, {
+    ...init,
+    headers: { 'Cache-Control': 'private, no-store, max-age=0' }
+  });
+}
 
 /**
  * Step 4: the jeweler-ready deliverable, gated by a paid unlock token.
@@ -20,21 +28,20 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get('token') || '';
-  if (!token) return NextResponse.json({ error: 'Missing token' }, { status: 400 });
+  if (!token) return privateJson({ error: 'Missing token' }, { status: 400 });
 
   const db = supabaseServer();
   const { data: unlocks, error } = await db
     .from('unlocks')
-    .select('id, design_id, status, stripe_session_id, suitor_email')
+    .select('id, design_id, status, stripe_session_id, suitor_email, amount_cents')
     .eq('access_token', token)
     .limit(1);
 
   if (error || !unlocks || unlocks.length === 0) {
-    return NextResponse.json({ error: 'That link is not valid.' }, { status: 404 });
+    return privateJson({ error: 'That link is not valid.' }, { status: 404 });
   }
 
   const unlock = unlocks[0];
-  const previewOK = process.env.ALLOW_UNPAID_PREVIEW === 'true';
   let status = unlock.status as string;
 
   // Reconcile against Stripe when the row is still pending. Refunded rows are
@@ -44,19 +51,23 @@ export async function GET(req: Request) {
       const session = await stripe().checkout.sessions.retrieve(
         unlock.stripe_session_id as string
       );
-      if (session.payment_status === 'paid' && session.metadata?.unlock_id === unlock.id) {
-        const { data: updated } = await db
+      if (session.payment_status === 'paid' && session.metadata?.unlock_id === unlock.id &&
+          session.id === unlock.stripe_session_id && session.mode === 'payment' &&
+          session.currency === 'usd' && Number.isInteger(unlock.amount_cents) &&
+          session.amount_total === unlock.amount_cents && unlock.amount_cents > 0) {
+        const { data: updated, error: paymentError } = await db
           .from('unlocks')
           .update({ status: 'paid', paid_at: new Date().toISOString() })
           .eq('id', unlock.id)
           .eq('status', 'pending')          // don't clobber a concurrent webhook
           .select('id');
 
-        status = 'paid';
+        if (paymentError) throw paymentError;
 
         // First writer sends the emails, so the webhook and this path can't
         // both notify. The dedupe keys make a double-send impossible anyway.
         if (updated?.length) {
+          status = 'paid';
           await sendUnlockDeliverable(unlock.id as string);
           await recordEvent({
             designId: unlock.design_id as string,
@@ -64,6 +75,16 @@ export async function GET(req: Request) {
             actorEmail: (unlock.suitor_email as string) || null,
             dedupeKey: `unlock_paid:${unlock.id}`
           });
+        } else {
+          // A concurrent refund or fulfillment may have won. Trust the
+          // persisted state, not the Stripe session's historical payment flag.
+          const { data: current, error: currentError } = await db
+            .from('unlocks')
+            .select('status')
+            .eq('id', unlock.id)
+            .single();
+          if (currentError) throw currentError;
+          status = current?.status || 'pending';
         }
       }
     } catch (e) {
@@ -72,8 +93,8 @@ export async function GET(req: Request) {
     }
   }
 
-  if (status !== 'paid' && !previewOK) {
-    return NextResponse.json({ error: 'payment_required', paid: false }, { status: 402 });
+  if (status !== 'paid') {
+    return privateJson({ error: 'payment_required', paid: false }, { status: 402 });
   }
 
   const { data: designs } = await db
@@ -83,7 +104,7 @@ export async function GET(req: Request) {
     .limit(1);
 
   if (!designs || designs.length === 0) {
-    return NextResponse.json({ error: 'That vault could not be found.' }, { status: 404 });
+    return privateJson({ error: 'That vault could not be found.' }, { status: 404 });
   }
 
   const d = designs[0];
@@ -113,9 +134,9 @@ export async function GET(req: Request) {
     // whole page because storage had a bad moment.
   }
 
-  return NextResponse.json({
+  return privateJson({
     photos,
-    paid: status === 'paid' || previewOK,
+    paid: true,
     name: d.full_name,
     selections: d.selections,
     note: d.note,

@@ -28,6 +28,7 @@ export default function VaultPage() {
   const [middle, setMiddle] = useState('');
   const [school, setSchool] = useState('');
   const [discState, setDiscState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [settingsError, setSettingsError] = useState('');
 
   const load = useCallback(async () => {
     const sb = supabaseBrowser();
@@ -61,7 +62,13 @@ export default function VaultPage() {
     if (!design) return;
     setSaveState('saving');
     const sb = supabaseBrowser();
-    await sb.from('designs').update({ note }).eq('id', design.id);
+    const { error } = await sb.from('designs').update({ note }).eq('id', design.id);
+    if (error) {
+      setSettingsError('Could not save your note. Please try again.');
+      setSaveState('idle');
+      return;
+    }
+    setSettingsError('');
     setSaveState('saved');
     setTimeout(() => setSaveState('idle'), 2200);
   }
@@ -69,18 +76,30 @@ export default function VaultPage() {
   async function saveDiscoverability() {
     if (!design || !userId) return;
     setDiscState('saving');
-    await fetch('/api/discoverability', {
+    setSettingsError('');
+    try {
+    const { data: { session } } = await supabaseBrowser().auth.getSession();
+    if (!session) throw new Error('Please sign in again.');
+    const response = await fetch('/api/discoverability', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({
-        designId: design.id, userId, discoverable,
-        fullName, dob, middle, school
+        designId: design.id, discoverable, fullName,
+        ...(dob.trim() ? { dob } : {}),
+        ...(middle.trim() ? { middle } : {}),
+        ...(school.trim() ? { school } : {})
       })
     });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not save privacy settings.');
     // Clear the plain answers from memory once hashed server-side.
     setDob(''); setMiddle(''); setSchool('');
     setDiscState('saved');
     setTimeout(() => setDiscState('idle'), 2400);
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : 'Could not save privacy settings.');
+      setDiscState('idle');
+    }
   }
 
   async function signOut() {
@@ -144,6 +163,7 @@ export default function VaultPage() {
 
       {design && (
         <>
+          {settingsError && <p className="msg err" role="alert">{settingsError}</p>}
           <div className="review-box">
             <div className="subhead" style={{ marginTop: 0 }}>
               <span className="cap">Your Perfect Ring</span>
@@ -154,7 +174,7 @@ export default function VaultPage() {
               ))}
             </ul>
             <div style={{ marginTop: 26, textAlign: 'right' }}>
-              <a className="ulink" href="/design">Refine My Ring</a>
+              <a className="ulink" href={`/edit?id=${encodeURIComponent(design.id)}`}>Refine My Ring</a>
             </div>
           </div>
 
@@ -205,8 +225,8 @@ export default function VaultPage() {
                 <input className="writein" style={{ marginBottom: 8 }} placeholder="Your high school"
                        value={school} onChange={(e) => setSchool(e.target.value)} />
                 <p className="msg" style={{ color: 'var(--grey)', marginBottom: 18 }}>
-                  Leave blank to keep any question you&apos;d rather not answer. At least one is
-                  needed for anyone to unlock your ring.
+                  Leave blank to keep an existing answer unchanged. At least two answers are
+                  needed to make your ring findable.
                 </p>
               </>
             )}

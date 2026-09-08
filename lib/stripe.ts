@@ -35,5 +35,10 @@ export function formatPrice(cents: number): string {
 
 /** Site origin for Stripe redirect URLs. */
 export function siteOrigin(reqOrigin?: string | null): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || reqOrigin || 'http://localhost:3000';
+  // Netlify supplies this URL itself; never trust a caller's Origin header
+  // for payment or private email destinations on a hosted deployment.
+  if (process.env.CONTEXT === 'deploy-preview' && process.env.DEPLOY_PRIME_URL) {
+    return new URL(process.env.DEPLOY_PRIME_URL).origin;
+  }
+  return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 }
