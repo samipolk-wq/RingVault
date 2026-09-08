@@ -129,12 +129,14 @@ body {
   gap: 12px; margin-bottom: 16px;
 }
 .opt {
+  font-family: inherit; color: inherit;
   border: 1px solid var(--line);
   padding: 26px 12px 22px;
   text-align: center; cursor: pointer;
   transition: border-color 0.3s, background 0.3s;
   font-size: 16px; background: #fff;
 }
+.opt:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 3px; }
 .opt:hover { border-color: var(--gold); }
 .opt.sel { border-color: var(--gold-deep); background: var(--champagne); }
 .opt svg { display: block; margin: 0 auto 12px; color: var(--gold-deep); opacity: 0.85; }
