@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/components/Icon';
 import { STEPS, CONNOISSEUR_DETAILS } from '@/lib/taxonomy';
 import { supabaseBrowser } from '@/lib/supabaseBrowser';
@@ -13,6 +13,15 @@ const ORDINALS = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'
 
 export default function Wizard() {
   const [step, setStep] = useState(0);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef(0);
+  useEffect(() => {
+    if (previousStep.current !== step) {
+      stepHeading.current?.focus({ preventScroll: true });
+      stepHeading.current?.scrollIntoView({ block: 'start' });
+      previousStep.current = step;
+    }
+  }, [step]);
   const [selections, setSelections] = useState<Selections>({});
   const [minCt, setMinCt] = useState(1);
   const [dreamCt, setDreamCt] = useState(2);
@@ -160,7 +169,7 @@ export default function Wizard() {
 
       {!atReview && current && (
         <div className="wstep">
-          <h2 dangerouslySetInnerHTML={{ __html: current.title }} />
+          <h2 ref={stepHeading} tabIndex={-1} style={{ scrollMarginTop: 90 }} dangerouslySetInnerHTML={{ __html: current.title }} />
           <p className="hint">{current.hint}</p>
 
           {current.photos ? (
@@ -238,7 +247,7 @@ export default function Wizard() {
 
       {atReview && (
         <div className="wstep">
-          <h2>Place your ring <em>into the vault</em></h2>
+          <h2 ref={stepHeading} tabIndex={-1} style={{ scrollMarginTop: 90 }}>Place your ring <em>into the vault</em></h2>
           <p className="hint">Read it back. If anything on this list is a compromise, change it now.</p>
 
           <div className="review-box">
