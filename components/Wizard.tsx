@@ -170,13 +170,13 @@ export default function Wizard() {
               <div className="slider-wrap">
                 <div className="subhead"><span className="cap dim">The number you won&apos;t go below</span></div>
                 <input
-                  type="range" min={0.25} max={5} step={0.25} value={minCt}
+                  aria-label="Minimum carat size" type="range" min={0.25} max={5} step={0.25} value={minCt}
                   onChange={(e) => setMinCt(Number(e.target.value))}
                 />
                 <div className="carat-val">{minCt} carats</div>
                 <div className="subhead"><span className="cap dim">The number you actually want</span></div>
                 <input
-                  type="range" min={0.25} max={8} step={0.25} value={dreamCt}
+                  aria-label="Dream carat size" type="range" min={0.25} max={8} step={0.25} value={dreamCt}
                   onChange={(e) => setDreamCt(Number(e.target.value))}
                 />
                 <div className="carat-val">{dreamCt} carats</div>
@@ -188,7 +188,9 @@ export default function Wizard() {
               <div className="subhead"><span className="cap dim">The connoisseur&apos;s details — skip freely</span></div>
               <div className="opts">
                 {CONNOISSEUR_DETAILS.map((d) => (
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={details.includes(d)}
                     key={d}
                     className={`opt${details.includes(d) ? ' sel' : ''}`}
                     onClick={() =>
@@ -198,7 +200,7 @@ export default function Wizard() {
                     }
                   >
                     {d}
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
@@ -208,19 +210,22 @@ export default function Wizard() {
                 <div className="subhead"><span className="cap dim">{g.sub}</span></div>
                 <div className="opts">
                   {g.opts.map((o) => (
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={selections[g.field] === o.label}
                       key={o.label}
                       className={`opt${selections[g.field] === o.label ? ' sel' : ''}`}
                       onClick={() => setSel(g.field, o.label)}
                     >
                       <Icon name={o.icon} />
                       {o.label}
-                    </div>
+                    </button>
                   ))}
                 </div>
                 {g.writeIn && (
                   <input
                     className="writein"
+                    aria-label={`${g.field}: your own answer`}
                     placeholder={g.writeIn}
                     onBlur={(e) => setSel(g.field, e.target.value.trim())}
                   />
