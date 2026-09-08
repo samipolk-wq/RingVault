@@ -37,7 +37,7 @@ function setup(file, results, event) {
     '@/lib/stripe': { stripe: () => ({
       webhooks: { constructEvent: () => event },
       checkout: { sessions: {
-        retrieve: async () => ({ payment_status: 'paid', metadata: { unlock_id: 'u1' } }),
+        retrieve: async () => ({ id:'cs_test_fixture',mode:'payment',currency:'usd',amount_total:4999,payment_status: 'paid', metadata: { unlock_id: 'u1' } }),
         list: async () => ({ data: [{ metadata: { unlock_id: 'u1' } }] })
       }}
     }) },
@@ -48,7 +48,7 @@ function setup(file, results, event) {
   });
   return { handler, db, notifications };
 }
-const pending = { data: [{ id:'u1', design_id:'d1', status:'pending', stripe_session_id:'cs_test_fixture' }] };
+const pending = { data: [{ id:'u1', design_id:'d1', status:'pending', stripe_session_id:'cs_test_fixture',amount_cents:4999 }] };
 const request = () => new Request('https://ringvault.example/api?token=fixture');
 const webhookRequest = () => new Request('https://ringvault.example/api', { method:'POST', body:'fixture' });
 const deliverable = 'app/api/suitor/deliverable/route.ts';
@@ -132,7 +132,7 @@ for (const type of ['checkout.session.completed','charge.refunded']) {
     try {
       const event={type,data:{object:type==='charge.refunded'
         ? {payment_intent:'pi_fixture'}
-        : {id:'cs_test_fixture',payment_status:'paid',metadata:{unlock_id:'u1'}}}};
+        : {id:'cs_test_fixture',mode:'payment',currency:'usd',amount_total:4999,payment_status:'paid',metadata:{unlock_id:'u1'}}}};
       const {handler}=setup(webhook,[{data:null,error:{message:'database unavailable'}}],event);
       assert.equal((await handler.POST(webhookRequest())).status,500);
     } finally {
@@ -140,3 +140,9 @@ for (const type of ['checkout.session.completed','charge.refunded']) {
     }
   });
 }
+
+test('a paid Stripe session with a different order amount never releases the ring', async()=>{
+ const {handler,db}=setup(deliverable,[{data:[{...pending.data[0],amount_cents:10000}]}]);
+ assert.equal((await handler.GET(request())).status,402);
+ assert.ok(!db.calls.some(c=>c[1]==='update'||c[0]==='designs'));
+});
